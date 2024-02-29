@@ -1,0 +1,155 @@
+version: '3'
+services:
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    networks:
+      project:
+    ports:
+      - "8080:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command:
+      - start-dev
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    networks:
+      project:
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka1:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka1
+    networks:
+      project:
+    ports:
+      - "8097:8097"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://localhost:8097,INTERNAL://kafka1:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+  kafka2:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka2
+    networks:
+      project:
+    ports:
+      - "8098:8098"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://localhost:8098,INTERNAL://kafka2:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+  kafka3:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka3
+    networks:
+      project:
+    ports:
+      - "8099:8099"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://localhost:8099,INTERNAL://kafka3:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    networks:
+      project:
+    depends_on:
+      - kafka1
+    ports:
+      - 8090:8080
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:9092, kafka2:9092, kafka3:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+
+  authentication-service:
+    container_name: authentication-service
+    build:
+      context: ./authentication-service
+      dockerfile: DockerFile
+    networks:
+      project:
+    depends_on:
+      - keycloak
+    ports:
+      - "9090:9090"
+    environment:
+      - spring.security.oauth2.client.provider.keycloak.issuer-uri=http://keycloak:8080/realms/HCL_Project
+      - spring.security.oauth2.resourceserver.jwt.issuer-uri=http://keycloak:8080/realms/HCL_Project
+      - keycloak.server-url=http://keycloak:8080
+
+  order-service:
+    container_name: order-service
+    build:
+      context: ./order-service
+      dockerfile: DockerFile
+    ports:
+      - "9091:9091"
+    networks:
+      project:
+    depends_on:
+      - keycloak
+    environment:
+      - spring.security.oauth2.client.provider.keycloak.issuer-uri=http://keycloak:8080/realms/HCL_Project
+      - spring.security.oauth2.resourceserver.jwt.issuer-uri=http://keycloak:8080/realms/HCL_Project
+      - kafka.bootstrap-servers=kafka1:9092,kafka2:9092,kafka3:9092
+
+  stock-service:
+    container_name: stock-service
+    build:
+      context: ./stock-service
+      dockerfile: DockerFile
+    ports:
+      - "9092:9092"
+    networks:
+      project:
+    depends_on:
+      - keycloak
+      - stock-db
+    environment:
+      - spring.security.oauth2.client.provider.keycloak.issuer-uri=http://keycloak:8080/realms/HCL_Project
+      - spring.security.oauth2.resourceserver.jwt.issuer-uri=http://keycloak:8080/realms/HCL_Project
+      - kafka.bootstrap-servers=kafka1:9092,kafka2:9092,kafka3:9092
+      - spring.datasource.url=jdbc:postgresql://stock-db:5431/Stock
+
+  stock-db:
+    image: postgres
+    container_name: stock-db
+    networks:
+      project:
+    ports:
+      - "5431:5432"
+    volumes:
+      - stock-db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=123456789
+      - POSTGRES_DB=Stock
+
+networks:
+  project:
+
+volumes:
+  stock-db-data:
