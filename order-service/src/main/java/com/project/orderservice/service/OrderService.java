@@ -5,5 +5,5 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 public interface OrderService
 {
-    void placeOrder(OrderDTO orderDTO);
+    void placeOrder(OrderDTO orderDTO, Jwt jwt);
 }
