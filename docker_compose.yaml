@@ -132,7 +132,7 @@ services:
       - spring.security.oauth2.client.provider.keycloak.issuer-uri=http://keycloak:8080/realms/HCL_Project
       - spring.security.oauth2.resourceserver.jwt.issuer-uri=http://keycloak:8080/realms/HCL_Project
       - kafka.bootstrap-servers=kafka1:9092,kafka2:9092,kafka3:9092
-      - spring.datasource.url=jdbc:postgresql://stock-db:5431/Stock
+      - spring.datasource.url=jdbc:postgresql://stock-db:5432/Stock
 
   stock-db:
     image: postgres

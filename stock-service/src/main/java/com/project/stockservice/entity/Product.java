@@ -11,6 +11,8 @@ import java.util.Objects;
 @Setter
 @ToString
 @RequiredArgsConstructor
+@AllArgsConstructor
+@Builder
 @Table(name = "product")
 public class Product
 {
@@ -20,6 +22,12 @@ public class Product
 
     @Column
     private String name;
+
+    @Column
+    private Double price;
+
+    @OneToOne(mappedBy = "product")
+    private Stock stock;
 
     @Override
     public boolean equals(Object o)

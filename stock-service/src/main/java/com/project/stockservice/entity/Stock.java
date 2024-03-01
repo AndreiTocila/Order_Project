@@ -11,6 +11,8 @@ import java.util.Objects;
 @Setter
 @ToString
 @RequiredArgsConstructor
+@AllArgsConstructor
+@Builder
 @Table(name = "stock")
 public class Stock
 {
@@ -19,11 +21,11 @@ public class Stock
     private Long id;
 
     @Column
-    private String quantity;
+    private Integer quantity;
 
     @OneToOne
-    @JoinColumn(name = "product_id")
-    private Product Product;
+    @JoinColumn(name = "product_id", unique = true)
+    private Product product;
 
     @Override
     public boolean equals(Object o)
