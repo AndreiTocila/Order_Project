@@ -19,7 +19,7 @@ public class OrderDTO
 
     String cardCVV;
 
-    List<Integer> productIds;
+    List<Long> productIds;
 
     List<Integer> productQuantities;
 }

@@ -1,0 +1,40 @@
+{
+  "namespace": "com.project.order.dto",
+  "name": "OrderKafkaDTO",
+  "type": "record",
+  "fields": [
+    {
+      "name": "id",
+      "type": "string"
+    },
+    {
+      "name": "cardNumber",
+      "type": "string"
+    },
+    {
+      "name": "cardExpirationDate",
+      "type": {
+        "type": "int",
+        "logicalType": "date"
+      }
+    },
+    {
+      "name": "cardCVV",
+      "type": "string"
+    },
+    {
+      "name": "productIds",
+      "type": {
+        "type": "array",
+        "items": "long"
+      }
+    },
+    {
+      "name": "productQuantities",
+      "type": {
+        "type": "array",
+        "items": "int"
+      }
+    }
+  ]
+}

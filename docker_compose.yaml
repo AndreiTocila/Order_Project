@@ -34,9 +34,9 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://localhost:8097,INTERNAL://kafka1:9092
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT_HOST:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://localhost:8097,PLAINTEXT://kafka1:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
 
   kafka2:
     image: confluentinc/cp-kafka:latest
@@ -50,9 +50,9 @@ services:
     environment:
       KAFKA_BROKER_ID: 2
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://localhost:8098,INTERNAL://kafka2:9092
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT_HOST:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://localhost:8098,PLAINTEXT://kafka2:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
 
   kafka3:
     image: confluentinc/cp-kafka:latest
@@ -66,9 +66,28 @@ services:
     environment:
       KAFKA_BROKER_ID: 3
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://localhost:8099,INTERNAL://kafka3:9092
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT_HOST:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://localhost:8099,PLAINTEXT://kafka3:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:latest
+    hostname: schema-registry
+    networks:
+      project:
+    ports:
+      - "8081:8081"
+    depends_on:
+      - zookeeper
+      - kafka1
+      - kafka2
+      - kafka3
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zookeeper:2181
+      SCHEMA_REGISTRY_LISTENERS: http://schema-registry:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka1:9092, kafka2:9092, kafka3:9092
+      SCHEMA_REGISTRY_DEBUG: 'true'
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -115,6 +134,7 @@ services:
       - spring.security.oauth2.client.provider.keycloak.issuer-uri=http://keycloak:8080/realms/HCL_Project
       - spring.security.oauth2.resourceserver.jwt.issuer-uri=http://keycloak:8080/realms/HCL_Project
       - kafka.bootstrap-servers=kafka1:9092,kafka2:9092,kafka3:9092
+      - schema.registry.url=http://schema-registry:8081
 
   stock-service:
     container_name: stock-service
@@ -133,6 +153,44 @@ services:
       - spring.security.oauth2.resourceserver.jwt.issuer-uri=http://keycloak:8080/realms/HCL_Project
       - kafka.bootstrap-servers=kafka1:9092,kafka2:9092,kafka3:9092
       - spring.datasource.url=jdbc:postgresql://stock-db:5432/Stock
+      - schema.registry.url=http://schema-registry:8081
+
+  card-validation-service:
+    container_name: card-validation-service
+    build:
+      context: ./card-validation-service
+      dockerfile: DockerFile
+    ports:
+      - "9093:9093"
+    networks:
+      project:
+    depends_on:
+      - keycloak
+      - stock-db
+    environment:
+      - spring.security.oauth2.client.provider.keycloak.issuer-uri=http://keycloak:8080/realms/HCL_Project
+      - spring.security.oauth2.resourceserver.jwt.issuer-uri=http://keycloak:8080/realms/HCL_Project
+      - kafka.bootstrap-servers=kafka1:9092,kafka2:9092,kafka3:9092
+      - schema.registry.url=http://schema-registry:8081
+
+  feedback-service:
+    container_name: feedback-service
+    build:
+      context: ./feedback-service
+      dockerfile: DockerFile
+    ports:
+      - "9094:9094"
+    networks:
+      project:
+    depends_on:
+      - keycloak
+      - feedback-db
+    environment:
+      - spring.security.oauth2.client.provider.keycloak.issuer-uri=http://keycloak:8080/realms/HCL_Project
+      - spring.security.oauth2.resourceserver.jwt.issuer-uri=http://keycloak:8080/realms/HCL_Project
+      - kafka.bootstrap-servers=kafka1:9092,kafka2:9092,kafka3:9092
+      - spring.datasource.url=jdbc:postgresql://feedback-db:5432/Feedback
+      - schema.registry.url=http://schema-registry:8081
 
   stock-db:
     image: postgres
@@ -148,8 +206,23 @@ services:
       - POSTGRES_PASSWORD=123456789
       - POSTGRES_DB=Stock
 
+  feedback-db:
+    image: postgres
+    container_name: feedback-db
+    networks:
+      project:
+    ports:
+      - "5430:5432"
+    volumes:
+      - feedback-db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=123456789
+      - POSTGRES_DB=Feedback
+
 networks:
   project:
 
 volumes:
   stock-db-data:
+  feedback-db-data:
